@@ -54,8 +54,8 @@ struct efsm_state_ {
 
     state_id id;
     bool final_state;
-    void (*entry_fn)(efsm_t *);
-    void (*exit_fn)(efsm_t *);
+    bool (*entry_fn)(efsm_t *);
+    bool (*exit_fn)(efsm_t *);
     efsm_state_timer_t *expiry_timer;
     transition_table_t trans_table;
 };
@@ -75,8 +75,8 @@ void efsm_destroy (efsm_t *fsm);
 efsm_state_t *
 efsm_create_new_state (state_id id, 
                                         bool is_final,
-                                        void (*entry_fn)(efsm_t *),
-                                        void (*exit_fn)(efsm_t *), 
+                                        bool (*entry_fn)(efsm_t *),
+                                        bool (*exit_fn)(efsm_t *), 
                                         transition_table_t *trans_table);
 
 void

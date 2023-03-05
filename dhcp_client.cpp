@@ -50,21 +50,8 @@ dhcp_client_state_tostring(dhcp_client_state_t state_enum)
     return NULL;
 }
 
-static void dhcp_client_default_state_entry_fn(efsm_t *efsm) {}
-static void dhcp_client_default_state_exit_fn(efsm_t *efsm){};
-
-
-/* DHCP States*/
-static efsm_state_t *dhcp_client_states[] = {
-
-    efsm_create_new_state(DHCP_CLIENT_ST_INIT, false, dhcp_client_default_state_entry_fn, dhcp_client_default_state_exit_fn, NULL),
-
-    efsm_create_new_state(DHCP_CLIENT_ST_DISCOVERING, false, dhcp_client_default_state_entry_fn, dhcp_client_default_state_exit_fn, NULL),
-
-    efsm_create_new_state(DHCP_CLIENT_ST_REQUESTING, false, dhcp_client_default_state_entry_fn, dhcp_client_default_state_exit_fn, NULL),
-
-    efsm_create_new_state(DHCP_CLIENT_ST_CONFIRMED, true, dhcp_client_default_state_entry_fn, dhcp_client_default_state_exit_fn, NULL)
-};
+static bool dhcp_client_default_state_entry_fn(efsm_t *efsm) { return true; }
+static bool dhcp_client_default_state_exit_fn(efsm_t *efsm) { return true; };
 
 static bool
 dhcp_client_fn_process_offer(efsm_t *efsm) {
@@ -101,6 +88,24 @@ dhcp_client_default_state_cancel_fn(efsm_t *efsm){
 }
 #define FSM_ACTION_DHCP_ABORT_STATE   ((action_fn)dhcp_client_default_state_cancel_fn)
 
+static bool 
+dhcp_client_process_dhcp_server_data (efsm_t *efsm) {
+
+    return true;
+} 
+#define FSM_ACTION_DHCP_PROCESS_DHCP_SERVER_DATA ((action_fn)dhcp_client_process_dhcp_server_data)
+
+/* DHCP States*/
+static efsm_state_t *dhcp_client_states[] = {
+
+    efsm_create_new_state(DHCP_CLIENT_ST_INIT, false, dhcp_client_default_state_entry_fn, dhcp_client_default_state_exit_fn, NULL),
+
+    efsm_create_new_state(DHCP_CLIENT_ST_DISCOVERING, false, FSM_ACTION_DHCP_SEND_DISCOVER, dhcp_client_default_state_exit_fn, NULL),
+
+    efsm_create_new_state(DHCP_CLIENT_ST_REQUESTING, false, FSM_ACTION_DHCP_SEND_REQUEST, dhcp_client_default_state_exit_fn, NULL),
+
+    efsm_create_new_state(DHCP_CLIENT_ST_CONFIRMED, true, FSM_ACTION_DHCP_PROCESS_DHCP_SERVER_DATA, dhcp_client_default_state_exit_fn, NULL)
+};
 
 /* DHCP client transition table */
 static transition_table_entry_t trans_table_dhcp_state_init[] = {
@@ -109,7 +114,7 @@ static transition_table_entry_t trans_table_dhcp_state_init[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 // DHCP_CLIENT_EVENT_SEND_DISCOVER
                 STATE_EVENT_TT_ENTRY(
-                    FSM_ACTION_DHCP_SEND_DISCOVER, dhcp_client_states[DHCP_CLIENT_ST_DISCOVERING]),
+                    FSM_NO_ACTION, dhcp_client_states[DHCP_CLIENT_ST_DISCOVERING]),
                 // DHCP_CLIENT_EVENT_ST_DISCOVER_TIMEOUT
                 STATE_EVENT_TT_ENTRY(FSM_INVAID_ACTION, FSM_NO_STATE_TRANSITION),
                 // DHCP_CLIENT_EVENT_RECV_OFFER
