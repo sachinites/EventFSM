@@ -11,6 +11,8 @@ efsm_state_timer_operation (wheel_timer_elem_t **timer, efsm_state_timer_op_t op
 static void
 efsm_state_exit (efsm_t *efsm) {
 
+    state_id_t state_id = efsm->current_state->id;
+
     if (efsm->state_print) {
         printf ("Exiting state %s\n", efsm->state_print(efsm->current_state->id));
     }
@@ -18,14 +20,12 @@ efsm_state_exit (efsm_t *efsm) {
         printf ("Exiting state %d\n", efsm->current_state->id);
     }
 
+    wheel_timer_elem_t *expiry_timer = efsm->state_config_data[state_id] ? 
+                            efsm->state_config_data[state_id]->expiry_timer : NULL;
+
     /* Executethe default action to  be performed on state exit */
-    if (efsm->current_state->state_timers) {
-        if (efsm->current_state->state_timers->expiry_timer) {
-            efsm_state_timer_operation (&efsm->current_state->state_timers->expiry_timer, EFSM_STATE_TIMER_STOP);
-        }
-        if (efsm->current_state->state_timers->other_timer) {
-            efsm_state_timer_operation (&efsm->current_state->state_timers->other_timer, EFSM_STATE_TIMER_STOP);
-        }
+    if (expiry_timer) {
+        efsm_state_timer_operation (&expiry_timer, EFSM_STATE_TIMER_STOP);
     }
 
     /* Execute theuser defined action to be performed on state exit */
@@ -48,6 +48,13 @@ efsm_state_enter (efsm_t *efsm, efsm_state_t *state) {
         printf ("Entering state %d\n", state->id);
     }
 
+    if (efsm->state_config_data[state->id] && 
+            efsm->state_config_data[state->id]->start_expiry_timer_on_enter) {
+        efsm_state_timer_operation (
+                &efsm->state_config_data[state->id]->expiry_timer,
+                EFSM_STATE_TIMER_START);
+    }
+
     /* Execute theuser defined action to be performed on state entry */
     if (state->entry_fn) {
         state->entry_fn(efsm);
@@ -57,7 +64,7 @@ efsm_state_enter (efsm_t *efsm, efsm_state_t *state) {
 }
 
 efsm_state_t *
-efsm_create_new_state (state_id id, 
+efsm_create_new_state (state_id_t id, 
                                         bool is_final,
                                         bool (*entry_fn)(efsm_t *),
                                         bool (*exit_fn)(efsm_t *), 
@@ -73,9 +80,11 @@ efsm_create_new_state (state_id id,
 }
 
 efsm_t *
-efsm_new (void *user_data) {
+efsm_new (void *user_data, state_id_t max_state_id) {
 
-    efsm_t *efsm = (efsm_t *)calloc (1, sizeof(efsm_t));
+    efsm_t *efsm;
+    efsm = (efsm_t *)calloc (1, sizeof(efsm_t) + 
+                        (sizeof(efsm->state_config_data[0]) * max_state_id)  );
     return efsm;
 }
 
@@ -89,14 +98,68 @@ efsm_execute (efsm_t *efsm, int event) {
         efsm->current_state = efsm->initial_state;
     }
 
-   efsm->old_state = efsm->current_state ;
+    /* Dont invoke this API from within transition fn*/
+    assert (efsm->transitioning == false);
+
+   efsm->event_triggered = event;
    action_fn_cbk = efsm->current_state->trans_table.tte_array[0][event].action_fn_cbk;
-   next_state = efsm->old_state->trans_table.tte_array[0][event].next_state;
+   next_state = efsm->current_state->trans_table.tte_array[0][event].next_state;
+
    if (action_fn_cbk) {
+        efsm->transitioning = true;
         action_fn_cbk(efsm);
+        efsm->transitioning = false;
    }
    if (next_state) {
         efsm_state_exit (efsm);
-        efsm_state_enter (efsm, efsm->old_state->trans_table.tte_array[0][event].next_state);
+        efsm_state_enter (efsm, next_state);
     }
+}
+
+/* Called when state timer expires */
+static void
+fsm_state_timer_expiry_fn (void *arg, uint32_t arg_size) {
+
+    efsm_t *efsm = (efsm_t *)arg;
+    efsm_state_t *current_state = efsm->current_state;
+    efsm->state_config_data[current_state->id]->expiry_timer = NULL;
+    efsm_execute(efsm, FSM_STATE_EVENT_TIMER_EXPIRY);
+}
+
+wheel_timer_elem_t *
+fsm_create_timer (efsm_t *efsm, uint16_t time_interval) {
+
+    wheel_timer_elem_t *wt_elem = NULL;
+
+#if 0
+    wt_elem = timer_register_app_event(
+                                    efsm->wt, 
+                                    fsm_state_timer_expiry_fn,
+                                    (void *)efsm,
+                                    sizeof(*efsm),
+                                    time_interval,
+                                    0);
+#endif
+
+    return wt_elem;
+}
+
+void
+efsm_state_expiry_timer_config 
+                                        (efsm_t *efsm,
+                                         state_id_t state_id, 
+                                         uint16_t expiry_interval, 
+                                         bool start_on_enter) {
+
+    state_config_data_t *state_config_data = 
+        efsm->state_config_data[state_id];
+
+    if (!state_config_data) {
+        state_config_data = (state_config_data_t *)calloc (1, sizeof(state_config_data_t));
+        efsm->state_config_data[state_id] = state_config_data;
+    }
+
+    state_config_data->expiry_time = expiry_interval;
+    state_config_data->start_expiry_timer_on_enter = start_on_enter;
+    state_config_data->expiry_timer = fsm_create_timer (efsm, expiry_interval);
 }
