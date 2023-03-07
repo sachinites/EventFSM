@@ -4,16 +4,28 @@
 #include "fsm.h"
 
 void 
-efsm_state_timer_operation (efsm_state_t *state, efsm_state_timer_op_t op) {
+efsm_state_timer_operation (wheel_timer_elem_t **timer, efsm_state_timer_op_t op) {
 
 }
 
-static bool
+static void
 efsm_state_exit (efsm_t *efsm) {
 
+    if (efsm->state_print) {
+        printf ("Exiting state %s\n", efsm->state_print(efsm->current_state->id));
+    }
+    else {
+        printf ("Exiting state %d\n", efsm->current_state->id);
+    }
+
     /* Executethe default action to  be performed on state exit */
-    if (efsm->current_state->expiry_timer) {
-        efsm_state_timer_operation (efsm->current_state, EFSM_STATE_TIMER_STOP);
+    if (efsm->current_state->state_timers) {
+        if (efsm->current_state->state_timers->expiry_timer) {
+            efsm_state_timer_operation (&efsm->current_state->state_timers->expiry_timer, EFSM_STATE_TIMER_STOP);
+        }
+        if (efsm->current_state->state_timers->other_timer) {
+            efsm_state_timer_operation (&efsm->current_state->state_timers->other_timer, EFSM_STATE_TIMER_STOP);
+        }
     }
 
     /* Execute theuser defined action to be performed on state exit */
@@ -22,15 +34,18 @@ efsm_state_exit (efsm_t *efsm) {
     }
 
     efsm->current_state = NULL;
-    return true;
 }
 
-static bool
+static void
 efsm_state_enter (efsm_t *efsm, efsm_state_t *state) {
 
-    /* Executethe default action to  be performed on state entry */
-    if (state->expiry_timer) {
-        efsm_state_timer_operation (state, EFSM_STATE_TIMER_START);
+    assert(!efsm->current_state);
+
+    if (efsm->state_print) {
+        printf ("Entering state %s\n", efsm->state_print(state->id));
+    }
+    else {
+        printf ("Entering state %d\n", state->id);
     }
 
     /* Execute theuser defined action to be performed on state entry */
@@ -39,7 +54,6 @@ efsm_state_enter (efsm_t *efsm, efsm_state_t *state) {
     }
 
     efsm->current_state = state;
-    return true;
 }
 
 efsm_state_t *
@@ -68,19 +82,21 @@ efsm_new (void *user_data) {
 void
 efsm_execute (efsm_t *efsm, int event) {
 
-    bool rc;
-    efsm_state_t *current_state;
+    efsm_state_t *next_state;
+    action_fn action_fn_cbk;
 
     if (!efsm->current_state) {
         efsm->current_state = efsm->initial_state;
     }
 
-    if (efsm->current_state->trans_table.tte_array[0][event].action_fn_cbk) {
-        rc = efsm->current_state->trans_table.tte_array[0][event].action_fn_cbk(efsm);
-        if (!rc) return;
-        current_state = efsm->current_state;
+   efsm->old_state = efsm->current_state ;
+   action_fn_cbk = efsm->current_state->trans_table.tte_array[0][event].action_fn_cbk;
+   next_state = efsm->old_state->trans_table.tte_array[0][event].next_state;
+   if (action_fn_cbk) {
+        action_fn_cbk(efsm);
+   }
+   if (next_state) {
         efsm_state_exit (efsm);
-        efsm_state_enter (efsm, current_state->trans_table.tte_array[0][event].next_state);
+        efsm_state_enter (efsm, efsm->old_state->trans_table.tte_array[0][event].next_state);
     }
-
 }

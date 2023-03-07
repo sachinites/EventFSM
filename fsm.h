@@ -44,10 +44,8 @@ typedef struct transition_table_ {
 
 typedef struct efsm_state_timer_ {
 
-    bool is_repeat;
-    uint16_t period; // in secs
-    void (*timer_cbk)(efsm_t *);
-    wheel_timer_elem_t *wt_elem;
+    wheel_timer_elem_t *expiry_timer;
+    wheel_timer_elem_t *other_timer;
 } efsm_state_timer_t;
 
 struct efsm_state_ {
@@ -56,16 +54,22 @@ struct efsm_state_ {
     bool final_state;
     bool (*entry_fn)(efsm_t *);
     bool (*exit_fn)(efsm_t *);
-    efsm_state_timer_t *expiry_timer;
+    efsm_state_timer_t *state_timers;
     transition_table_t trans_table;
 };
 
 struct efsm_ {
 
     efsm_state_t *initial_state;
+    efsm_state_t *old_state;
     efsm_state_t *current_state;
+
     void *user_data;
     wheel_timer_t *wt;
+
+    /* Helper Callbacks for logging */
+    const char * (*state_print)(state_id);
+    const char *(*event_print)(int event);
 };
 
 /* APIs */
@@ -79,12 +83,6 @@ efsm_create_new_state (state_id id,
                                         bool (*exit_fn)(efsm_t *), 
                                         transition_table_t *trans_table);
 
-void
-efsm_state_init_timer (efsm_state_t *state,
-                                     bool is_repeat,
-                                     uint16_t period,
-                                     void (*timer_cbk)(efsm_t *));
-
 typedef enum efsm_state_timer_op_ {
 
     EFSM_STATE_TIMER_START,
@@ -94,12 +92,9 @@ typedef enum efsm_state_timer_op_ {
 } efsm_state_timer_op_t;
 
 void 
-efsm_state_timer_operation (efsm_state_t *state, efsm_state_timer_op_t op);
+efsm_state_timer_operation (wheel_timer_elem_t **timer, efsm_state_timer_op_t op);
 
 void
 efsm_execute (efsm_t *efsm, int event);
-
-
-
 
 #endif 

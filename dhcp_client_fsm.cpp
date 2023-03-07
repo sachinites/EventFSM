@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "fsm.h"
 
 /*sample Event FSM example */
@@ -31,8 +32,10 @@ typedef enum dhcp_client_state_ {
 } dhcp_client_state_t;
 
 const char *
-dhcp_client_state_tostring(dhcp_client_state_t state_enum)
+dhcp_client_state_tostring(state_id _state_enum)
 {
+    dhcp_client_state_t state_enum = (dhcp_client_state_t)_state_enum;
+
     switch (state_enum)
     {
     case DHCP_CLIENT_ST_INIT:
@@ -50,40 +53,32 @@ dhcp_client_state_tostring(dhcp_client_state_t state_enum)
     return NULL;
 }
 
-static bool dhcp_client_default_state_entry_fn(efsm_t *efsm) { return true; }
-static bool dhcp_client_default_state_exit_fn(efsm_t *efsm) { return true; };
-
-static bool
-dhcp_client_fn_process_offer(efsm_t *efsm) {
-
-    return true;
+static bool dhcp_client_default_state_entry_fn(efsm_t *efsm) { 
+    printf ("%s() Called ...\n", __FUNCTION__);
+    return true; 
 }
+
+static bool dhcp_client_default_state_exit_fn(efsm_t *efsm) { 
+     printf ("%s() Called ...\n", __FUNCTION__);
+    return true; 
+};
+
+extern bool dhcp_client_fn_process_offer(efsm_t *efsm) ;
 #define FSM_ACTION_DHCP_PROCESS_OFFER   ((action_fn)dhcp_client_fn_process_offer)
 
-static bool
-dhcp_client_fn_process_ack(efsm_t *efsm) {
-
-    return true;
-}
+extern bool dhcp_client_fn_process_ack(efsm_t *efsm);
 #define FSM_ACTION_DHCP_PROCESS_ACK   ((action_fn)dhcp_client_fn_process_ack)
 
-static bool
-dhcp_client_fn_send_discover(efsm_t *efsm) {
-
-    return true;
-}
+extern bool dhcp_client_fn_send_discover(efsm_t *efsm);
 #define FSM_ACTION_DHCP_SEND_DISCOVER   ((action_fn)dhcp_client_fn_send_discover)
 
-static bool
-dhcp_client_fn_send_request(efsm_t *efsm) {
-
-    return true;
-}
+extern bool dhcp_client_fn_send_request(efsm_t *efsm);
 #define FSM_ACTION_DHCP_SEND_REQUEST   ((action_fn)dhcp_client_fn_send_request)
 
 static bool 
 dhcp_client_default_state_cancel_fn(efsm_t *efsm){ 
     
+    printf ("%s() Called ...\n", __FUNCTION__);
     return true ; 
 }
 #define FSM_ACTION_DHCP_ABORT_STATE   ((action_fn)dhcp_client_default_state_cancel_fn)
@@ -263,8 +258,10 @@ dhcp_client_new_efsm() {
     dhcp_client_states[DHCP_CLIENT_ST_CONFIRMED]->trans_table.tte_array = 
         &trans_table_dhcp_state_confirmed;
 
+    /* Initiate Timers Here */
     efsm_t *efsm = efsm_new(NULL);
     efsm->initial_state = dhcp_client_states[DHCP_CLIENT_ST_INIT];
+    efsm->state_print = dhcp_client_state_tostring;
     return efsm;
 }
 
@@ -272,5 +269,7 @@ int main(int argc, char **argv) {
 
     efsm_t *efsm = dhcp_client_new_efsm();
     efsm_execute(efsm, DHCP_CLIENT_EVENT_SEND_DISCOVER);
+    efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_OFFER);
+    efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_ACK);
     return 0;
 }
