@@ -136,7 +136,7 @@ static transition_table_entry_t trans_table_dhcp_state_discovering[] = {
                 // DHCP_CLIENT_EVENT_INIT
                 STATE_EVENT_TT_ENTRY(
                                             FSM_ACTION_DHCP_ABORT_STATE, 
-                                            dhcp_client_states[DHCP_CLIENT_EVENT_INIT]),
+                                            dhcp_client_states[DHCP_CLIENT_ST_INIT]),
 
                 // DHCP_CLIENT_EVENT_SEND_DISCOVER
                 STATE_EVENT_TT_ENTRY(
@@ -146,7 +146,7 @@ static transition_table_entry_t trans_table_dhcp_state_discovering[] = {
                 // DHCP_CLIENT_EVENT_ST_DISCOVER_TIMEOUT
                 STATE_EVENT_TT_ENTRY(
                         FSM_ACTION_DHCP_ABORT_STATE,
-                        dhcp_client_states[DHCP_CLIENT_EVENT_INIT]),
+                        dhcp_client_states[DHCP_CLIENT_ST_INIT]),
 
                 // DHCP_CLIENT_EVENT_RECV_OFFER
                 STATE_EVENT_TT_ENTRY(FSM_ACTION_DHCP_PROCESS_OFFER,
@@ -168,7 +168,7 @@ static transition_table_entry_t trans_table_dhcp_state_discovering[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
 
                 /* Timer Expiry Event in the last*/
-                STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION)
+                STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, dhcp_client_states[DHCP_CLIENT_ST_DISCOVERING])
 };
 
 static transition_table_entry_t trans_table_dhcp_state_requesting[] = {
@@ -270,6 +270,11 @@ dhcp_client_new_efsm() {
     efsm_t *efsm = efsm_new(NULL, DHCP_CLIENT_ST_MAX);
     efsm->initial_state = dhcp_client_states[DHCP_CLIENT_ST_INIT];
     efsm->state_print = dhcp_client_state_tostring;
+
+    /* Config State Timers */
+    efsm_state_expiry_timer_config (efsm, DHCP_CLIENT_ST_DISCOVERING, 10000, true);
+    efsm_state_expiry_timer_config (efsm, DHCP_CLIENT_ST_REQUESTING, 10000, true);
+
     return efsm;
 }
 
@@ -277,7 +282,8 @@ int main(int argc, char **argv) {
 
     efsm_t *efsm = dhcp_client_new_efsm();
     efsm_execute(efsm, DHCP_CLIENT_EVENT_SEND_DISCOVER);
-    efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_OFFER);
-    efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_ACK);
+    //efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_OFFER);
+    //efsm_execute(efsm, DHCP_CLIENT_EVENT_RECV_ACK);
+    pause();
     return 0;
 }
