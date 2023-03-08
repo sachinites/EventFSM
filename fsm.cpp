@@ -4,8 +4,25 @@
 #include "fsm.h"
 
 void 
-efsm_state_timer_operation (wheel_timer_elem_t **timer, efsm_state_timer_op_t op) {
+efsm_state_timer_operation (wheel_timer_elem_t *timer, efsm_state_timer_op_t op) {
 
+    switch (op) {
+
+        case   EFSM_STATE_TIMER_START:
+            timer_start(timer);
+            break;
+        case EFSM_STATE_TIMER_STOP:
+            timer_stop(timer);
+            break;
+        case EFSM_STATE_TIMER_RESTART:
+            timer_restart(timer);
+            break;
+        case EFSM_STATE_TIMER_DESTROY:
+            timer_stop (timer);
+            free(timer);
+            break;
+        default: ;
+    }
 }
 
 static void
@@ -25,7 +42,7 @@ efsm_state_exit (efsm_t *efsm) {
 
     /* Executethe default action to  be performed on state exit */
     if (expiry_timer) {
-        efsm_state_timer_operation (&expiry_timer, EFSM_STATE_TIMER_STOP);
+        efsm_state_timer_operation (expiry_timer, EFSM_STATE_TIMER_STOP);
     }
 
     /* Execute theuser defined action to be performed on state exit */
@@ -51,7 +68,7 @@ efsm_state_enter (efsm_t *efsm, efsm_state_t *state) {
     if (efsm->state_config_data[state->id] && 
             efsm->state_config_data[state->id]->start_expiry_timer_on_enter) {
         efsm_state_timer_operation (
-                &efsm->state_config_data[state->id]->expiry_timer,
+                efsm->state_config_data[state->id]->expiry_timer,
                 EFSM_STATE_TIMER_START);
     }
 
@@ -131,15 +148,13 @@ fsm_create_timer (efsm_t *efsm, uint16_t time_interval) {
 
     wheel_timer_elem_t *wt_elem = NULL;
 
-#if 0
-    wt_elem = timer_register_app_event(
+    wt_elem = timer_create_new(
                                     efsm->wt, 
                                     fsm_state_timer_expiry_fn,
                                     (void *)efsm,
                                     sizeof(*efsm),
                                     time_interval,
                                     0);
-#endif
 
     return wt_elem;
 }

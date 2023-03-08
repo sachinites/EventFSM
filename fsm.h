@@ -4,9 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "libtimer/WheelTimer.h"
 
-typedef struct wheel_timer_ wheel_timer_t;
-typedef struct wheel_timer_elem_ wheel_timer_elem_t;
 typedef uint8_t state_id_t;
 typedef uint8_t fsm_event_id_t;
 
@@ -105,7 +104,7 @@ typedef enum efsm_state_timer_op_ {
 } efsm_state_timer_op_t;
 
 void 
-efsm_state_timer_operation (wheel_timer_elem_t **timer, efsm_state_timer_op_t op);
+efsm_state_timer_operation (wheel_timer_elem_t *timer, efsm_state_timer_op_t op);
 
 void
 efsm_execute (efsm_t *efsm, int event);

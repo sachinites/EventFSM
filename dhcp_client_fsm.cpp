@@ -32,7 +32,7 @@ typedef enum dhcp_client_state_ {
 } dhcp_client_state_t;
 
 const char *
-dhcp_client_state_tostring(state_id _state_enum)
+dhcp_client_state_tostring(state_id_t _state_enum)
 {
     dhcp_client_state_t state_enum = (dhcp_client_state_t)_state_enum;
 
@@ -126,6 +126,8 @@ static transition_table_entry_t trans_table_dhcp_state_init[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
+
+                /* Timer Expiry Event in the last*/
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION)
 };
 
@@ -164,6 +166,8 @@ static transition_table_entry_t trans_table_dhcp_state_discovering[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
+
+                /* Timer Expiry Event in the last*/
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION)
 };
 
@@ -203,6 +207,8 @@ static transition_table_entry_t trans_table_dhcp_state_requesting[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
+
+                /* Timer Expiry Event in the last*/
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION)
 };
 
@@ -241,6 +247,8 @@ static transition_table_entry_t trans_table_dhcp_state_confirmed[] = {
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION),
+
+                /* Timer Expiry Event in the last*/
                 STATE_EVENT_TT_ENTRY(FSM_NO_ACTION, FSM_NO_STATE_TRANSITION)
 };
 
@@ -259,7 +267,7 @@ dhcp_client_new_efsm() {
         &trans_table_dhcp_state_confirmed;
 
     /* Initiate Timers Here */
-    efsm_t *efsm = efsm_new(NULL);
+    efsm_t *efsm = efsm_new(NULL, DHCP_CLIENT_ST_MAX);
     efsm->initial_state = dhcp_client_states[DHCP_CLIENT_ST_INIT];
     efsm->state_print = dhcp_client_state_tostring;
     return efsm;
