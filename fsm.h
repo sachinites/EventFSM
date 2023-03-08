@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <pthread.h>
 #include "libtimer/WheelTimer.h"
 
 typedef uint8_t state_id_t;
@@ -71,6 +72,7 @@ struct efsm_ {
     const char * (*state_print)(state_id_t);
     const char *(*event_print)(int event);
 
+    pthread_spinlock_t spinlock;
     state_config_data_t *state_config_data[0];
 };
 

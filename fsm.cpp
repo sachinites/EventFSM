@@ -25,6 +25,9 @@ efsm_state_timer_operation (wheel_timer_elem_t *timer, efsm_state_timer_op_t op)
     }
 }
 
+static const char *TIMER_EXP_EVENT_STR = 
+    "FSM_STATE_EVENT_TIMER_EXPIRY";
+
 static void
 efsm_state_exit (efsm_t *efsm) {
 
@@ -106,6 +109,7 @@ efsm_new (void *user_data, state_id_t max_state_id) {
                         (sizeof(efsm->state_config_data[0]) * max_state_id)  );
     efsm->wt = init_wheel_timer (60, 1000, TIMER_MILLI_SECONDS);
     start_wheel_timer(efsm->wt);
+    pthread_spin_init(&efsm->spinlock, PTHREAD_PROCESS_PRIVATE);
     return efsm;
 }
 
@@ -115,11 +119,26 @@ efsm_execute (efsm_t *efsm, int event) {
     efsm_state_t *next_state;
     action_fn action_fn_cbk;
 
+    pthread_spin_lock (&efsm->spinlock);
+
     if (!efsm->current_state) {
         efsm->current_state = efsm->initial_state;
     }
 
-    printf ("Executing Event %d on state %d\n", event, efsm->current_state->id);
+    if (efsm->event_print)
+        printf ("Executing Event %s", 
+            (event != FSM_STATE_EVENT_TIMER_EXPIRY) ? efsm->event_print(event) : TIMER_EXP_EVENT_STR);
+    else if (event == FSM_STATE_EVENT_TIMER_EXPIRY)
+        printf ("Executing Event %s", TIMER_EXP_EVENT_STR);
+    else
+        printf ("Executing Event %d", event);
+
+
+    if (efsm->state_print) 
+        printf (" on state %s\n", efsm->state_print(efsm->current_state->id));
+    else
+        printf (" on state %d\n", efsm->current_state->id);
+
 
     /* Dont invoke this API from within transition fn*/
     assert (efsm->transitioning == false);
@@ -137,12 +156,15 @@ efsm_execute (efsm_t *efsm, int event) {
         efsm_state_exit (efsm);
         efsm_state_enter (efsm, next_state);
     }
+
+    pthread_spin_unlock (&efsm->spinlock);
 }
 
 /* Called when state timer expires */
 static void
 fsm_state_timer_expiry_fn (void *arg, uint32_t arg_size) {
 
+    if (!arg) return;
     efsm_t *efsm = (efsm_t *)arg;
     efsm_state_t *current_state = efsm->current_state;
     efsm_execute(efsm, FSM_STATE_EVENT_TIMER_EXPIRY);

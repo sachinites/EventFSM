@@ -161,10 +161,6 @@ timer_create_new (wheel_timer_t *wt,
 		   int time_interval, 
 		   char is_recursive);
 
-
-
-
-
 void
 timer_start (wheel_timer_elem_t *wt_elem) ;
 
